@@ -13,7 +13,7 @@ import * as Device from "expo-device";
 
 interface Props {
   visible: boolean;
-  onSuccess: (workerId: number) => void; // <-- broj, ne string
+  onSuccess: (workerId: number) => void;
 }
 
 export default function LoginModal({ visible, onSuccess }: Props) {
@@ -23,7 +23,10 @@ export default function LoginModal({ visible, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!organisation.trim() || !name.trim()) {
+    const orgClean = organisation.trim();
+    const nameClean = name.trim();
+
+    if (!orgClean || !nameClean) {
       setError("Unesite organizaciju i ime.");
       return;
     }
@@ -32,11 +35,11 @@ export default function LoginModal({ visible, onSuccess }: Props) {
     setError("");
 
     const device =
-      Device.deviceName || Device.modelName || `Device-${Math.random()}`;
+      Device.deviceName || Device.modelName || `UnknownDevice`;
 
     try {
-      const url = `https://${organisation}.vercel.app/api/worker/by-name?name=${encodeURIComponent(
-        name
+      const url = `https://${orgClean}.vercel.app/api/worker/by-name?name=${encodeURIComponent(
+        nameClean
       )}&device=${encodeURIComponent(device)}`;
 
       console.log("📡 Slanje zahteva na:", url);
@@ -60,9 +63,9 @@ export default function LoginModal({ visible, onSuccess }: Props) {
       const data = JSON.parse(text);
 
       if (data?.id) {
-        await SecureStore.setItemAsync("workerId", String(data.id)); // ✅ snimi kao string
-        await SecureStore.setItemAsync("organisation", organisation);
-        onSuccess(data.id); // ✅ šalje kao broj
+        await SecureStore.setItemAsync("workerId", String(data.id));
+        await SecureStore.setItemAsync("organisation", orgClean);
+        onSuccess(data.id);
       } else {
         setError("❌ Ime nije pronađeno.");
       }
@@ -74,8 +77,18 @@ export default function LoginModal({ visible, onSuccess }: Props) {
     }
   };
 
+  const handleOrgChange = (text: string) => {
+    setOrganisation(text);
+    if (error) setError("");
+  };
+
+  const handleNameChange = (text: string) => {
+    setName(text);
+    if (error) setError("");
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={true}>
+    <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <Text style={styles.title}>Prijava</Text>
@@ -83,15 +96,15 @@ export default function LoginModal({ visible, onSuccess }: Props) {
           <TextInput
             placeholder="Organizacija"
             value={organisation}
-            onChangeText={setOrganisation}
-            style={styles.input}
+            onChangeText={handleOrgChange}
+            style={[styles.input, error && styles.inputError]}
             editable={!loading}
           />
           <TextInput
             placeholder="Vaše ime"
             value={name}
-            onChangeText={setName}
-            style={styles.input}
+            onChangeText={handleNameChange}
+            style={[styles.input, error && styles.inputError]}
             editable={!loading}
           />
 
@@ -100,7 +113,11 @@ export default function LoginModal({ visible, onSuccess }: Props) {
           {loading ? (
             <ActivityIndicator size="small" />
           ) : (
-            <Button title="Potvrdi" onPress={handleLogin} />
+            <Button
+              title="Potvrdi"
+              onPress={handleLogin}
+              disabled={!organisation.trim() || !name.trim()}
+            />
           )}
         </View>
       </View>
@@ -135,6 +152,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 12,
+  },
+  inputError: {
+    borderColor: "red",
   },
   error: {
     color: "red",

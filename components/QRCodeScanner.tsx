@@ -7,7 +7,7 @@ interface Props {
   workerId: number;
   organisation: string;
   setMessage: (msg: string) => void;
-  onSuccess?: () => void; // 🔄 dodat callback za osvežavanje
+  onSuccess?: () => void;
 }
 
 export default function QRCodeScanner({ workerId, organisation, setMessage, onSuccess }: Props) {
@@ -26,7 +26,7 @@ export default function QRCodeScanner({ workerId, organisation, setMessage, onSu
       const token = url.searchParams.get('token');
       const type = url.searchParams.get('type');
 
-      if (!token || !type) {
+      if (!token || !type || (type !== 'entry' && type !== 'exit')) {
         setMessage('❌ QR kod nije validan.');
         return;
       }
@@ -45,17 +45,19 @@ export default function QRCodeScanner({ workerId, organisation, setMessage, onSu
         lat = location.coords.latitude;
         lon = location.coords.longitude;
 
-        await fetch(`https://${organisation}.vercel.app/api/location/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workerId, lat, lon }),
-        });
-
-        const checkRes = await fetch(`https://${organisation}.vercel.app/api/location/check`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lat, lon }),
-        });
+        // ✅ Asinhrono slanje i provera lokacije
+        const [sendRes, checkRes] = await Promise.all([
+          fetch(`https://${organisation}.vercel.app/api/location/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workerId, lat, lon }),
+          }),
+          fetch(`https://${organisation}.vercel.app/api/location/check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lon }),
+          }),
+        ]);
 
         const checkData = await checkRes.json();
         if (!checkData.allowed) {
@@ -73,12 +75,14 @@ export default function QRCodeScanner({ workerId, organisation, setMessage, onSu
 
       if (finalRes.ok) {
         setPopupMessage(`✅ ${type === 'entry' ? 'Check-in' : 'Check-out'} uspešan!`);
-        onSuccess?.(); // 🔄 poziva refresh
+        onSuccess?.();
       } else {
-        setMessage('❌ Greška pri slanju zahteva.');
+        const errorData = await finalRes.json();
+        setMessage(`❌ ${errorData?.error || 'Greška pri slanju zahteva.'}`);
       }
 
     } catch (err) {
+      console.error('[QR]', err);
       setMessage('❌ Greška u obradi.');
     } finally {
       setLoading(false);

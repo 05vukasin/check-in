@@ -5,8 +5,9 @@ import WorkerStatusIndicator from "./components/WorkerStatusIndicator";
 import LoginModal from "./components/LoginModal";
 import QRCodeScanner from "./components/QRCodeScanner";
 import * as SecureStore from "expo-secure-store";
-import { useLocationReporter } from './hooks/useLocationReporter';
-
+import { useLocationReporter } from "./hooks/useLocationReporter";
+import * as Location from "expo-location";
+import { LOCATION_TASK_NAME } from "./background/LocationTask";
 
 export default function App() {
   const [workerId, setWorkerId] = useState<number | null>(null);
@@ -16,27 +17,73 @@ export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    const load = async () => {
+    const validateWorker = async () => {
       const storedId = await SecureStore.getItemAsync("workerId");
       const storedOrg = await SecureStore.getItemAsync("organisation");
 
-      if (storedId && storedOrg) {
-        setWorkerId(parseInt(storedId));
-        setOrganisation(storedOrg);
-      } else {
+      if (!storedId || !storedOrg) {
+        setShowLogin(true);
+        return;
+      }
+
+      try {
+        const res = await fetch(`https://${storedOrg}.vercel.app/api/worker/validate?id=${storedId}`);
+        const json = await res.json();
+
+        if (res.ok && json.ok) {
+          setWorkerId(Number(storedId));
+          setOrganisation(storedOrg);
+          setShowLogin(false);
+        } else {
+          throw new Error("Nevalidan korisnik");
+        }
+      } catch (err) {
+        console.warn("❌ Provera korisnika nije uspela:", err);
+        await SecureStore.deleteItemAsync("workerId");
+        await SecureStore.deleteItemAsync("organisation");
+        setWorkerId(null);
+        setOrganisation(null);
         setShowLogin(true);
       }
     };
 
-    load();
+    validateWorker();
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    const startBackgroundLocation = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+
+      if (status !== 'granted' || bgStatus !== 'granted') {
+        console.warn('❌ Lokacione dozvole nisu dodeljene');
+        return;
+      }
+
+      const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (!started) {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 10000,
+          distanceInterval: 0,
+          showsBackgroundLocationIndicator: true,
+          pausesUpdatesAutomatically: false,
+          foregroundService: {
+            notificationTitle: 'Praćenje lokacije',
+            notificationBody: 'Aplikacija prati vašu lokaciju u pozadini',
+          },
+        });
+      }
+    };
+
+    startBackgroundLocation();
   }, []);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  useLocationReporter(); // ⏱️ Aktivira logovanje lokacije na svakih 10s
-
+  useLocationReporter();
 
   return (
     <View style={styles.container}>
@@ -54,7 +101,7 @@ export default function App() {
             workerId={workerId}
             organisation={organisation}
             setMessage={setMessage}
-            onSuccess={handleRefresh} // 🔄 osvežava status indikator
+            onSuccess={handleRefresh}
           />
 
           {message !== "" && <Text style={styles.message}>{message}</Text>}

@@ -1,6 +1,7 @@
+// background/locationTask.ts
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import * as SecureStore from 'expo-secure-store'; // ✅ DODATO
+import * as SecureStore from 'expo-secure-store';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -32,7 +33,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         });
       }
     } catch (e) {
-      console.error('❌ Greska pri slanju lokacije:', e);
+      console.error('❌ Error sending location:', e);
     }
   }
 });
