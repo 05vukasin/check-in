@@ -1,48 +1,46 @@
 {
-  "expo": {
-    "name": "check-in",
-    "slug": "check-in",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/worker-logo.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/worker-logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to track check-ins and check-outs.",
-        "NSLocationAlwaysUsageDescription": "This app requires access to your location even in the background for attendance tracking.",
-        "UIBackgroundModes": ["location"]
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/worker-logo.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.teslicvukasin.checkin",
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/worker-logo.png"
-    },
-    "plugins": [
-      "expo-secure-store"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "01d0ea0e-5270-4a25-914c-bb9ffab4a3df"
-      }
+    "expo": {
+        "name": "check-in",
+        "slug": "check-in",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/worker-logo.png",
+        "userInterfaceStyle": "light",
+        "newArchEnabled": true,
+        "splash": {
+            "image": "./assets/worker-logo.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "infoPlist": {
+                "NSLocationWhenInUseUsageDescription": "This app requires access to your location to track check-ins and check-outs.",
+                "NSLocationAlwaysUsageDescription": "This app requires access to your location even in the background for attendance tracking.",
+                "NSCameraUsageDescription": "This app requires access to the camera to scan QR codes.",
+                "UIBackgroundModes": ["location", "location"],
+                "ITSAppUsesNonExemptEncryption": false
+            },
+            "bundleIdentifier": "com.teslicvukasin.checkin"
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/worker-logo.png",
+                "backgroundColor": "#ffffff"
+            },
+            "edgeToEdgeEnabled": true,
+            "package": "com.teslicvukasin.checkin",
+            "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
+        },
+        "web": {
+            "favicon": "./assets/worker-logo.png"
+        },
+        "plugins": ["expo-secure-store"],
+        "extra": {
+            "eas": {
+                "projectId": "710c498b-ff45-457e-8360-f21b41ffbb39"
+            }
+        },
+        "owner": "jaksakecojevic"
     }
-  }
 }
