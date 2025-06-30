@@ -34,8 +34,9 @@ export default function LoginModal({ visible, onSuccess }: Props) {
     setLoading(true);
     setError("");
 
-    const device =
-      Device.deviceName || Device.modelName || `UnknownDevice`;
+    const device = `${Device.deviceName ?? "Unknown"}|${
+      Device.osInternalBuildId ?? "NoBuildId"
+    }|${Device.modelId ?? "NoModelId"}`;
 
     try {
       const url = `https://${orgClean}.vercel.app/api/worker/by-name?name=${encodeURIComponent(
