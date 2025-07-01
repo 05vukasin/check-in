@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
-    "@rnmapbox/maps": "^10.1.39",
     "expo": "~53.0.13",
     "expo-camera": "~16.1.9",
+    "expo-dev-client": "~5.2.2",
     "expo-device": "~7.1.4",
     "expo-location": "~18.1.5",
     "expo-secure-store": "~14.2.3",
@@ -22,9 +22,8 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.4",
-    "react-native-maps": "1.20.1",
-    "react-native-web": "^0.20.0",
-    "expo-dev-client": "~5.2.2"
+    "react-native-maps": "^1.20.1",
+    "react-native-web": "^0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -18,9 +18,7 @@
         "NSCameraUsageDescription": "The camera is used to scan QR codes when checking in and out of work.",
         "NSLocationWhenInUseUsageDescription": "Location is used to verify whether the worker is physically present at the workplace during check-in.",
         "NSLocationAlwaysUsageDescription": "Background location is used to update attendance status and show active workers on the map in real-time.",
-        "UIBackgroundModes": [
-          "location"
-        ],
+        "UIBackgroundModes": ["location"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -34,6 +32,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
         "INTERNET",
         "CAMERA"
       ],
@@ -42,9 +41,7 @@
     "web": {
       "favicon": "./assets/worker-logo.png"
     },
-    "plugins": [
-      "expo-secure-store"
-    ],
+    "plugins": ["expo-secure-store"],
     "extra": {
       "eas": {
         "projectId": "01d0ea0e-5270-4a25-914c-bb9ffab4a3df"

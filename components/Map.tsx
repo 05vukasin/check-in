@@ -23,14 +23,18 @@ interface Worker {
 
 export default function Map({ onClose }: Props) {
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchWorkers = async (org: string) => {
+  const fetchWorkers = async () => {
     try {
+      const org = await SecureStore.getItemAsync("organisation");
+      if (!org) return;
+
       const url = `https://${org}.vercel.app/api/worker/online`;
       console.log("📡 Pozivam endpoint:", url);
+
       const res = await fetch(url);
       const contentType = res.headers.get("content-type");
       const text = await res.text();
@@ -47,58 +51,63 @@ export default function Map({ onClose }: Props) {
       }
     } catch (e) {
       console.warn("❌ Greska prilikom fetch-a:", e);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const loadFromCache = async () => {
+  const loadLastWorkers = async () => {
     try {
       const cached = await SecureStore.getItemAsync("lastWorkers");
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) setWorkers(parsed);
       }
-    } catch {}
+    } catch (e) {
+      console.warn("⚠️ Cache load error:", e);
+    }
   };
 
   useEffect(() => {
-    const load = async () => {
-      await loadFromCache();
+    const initMap = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setError("Location permission not granted.");
+          return;
+        }
 
-      const org = await SecureStore.getItemAsync("organisation");
-      if (!org) {
-        console.warn("❌ Organizacija nije definisana");
-        setLoading(false);
-        return;
+        const location = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = location.coords;
+
+        if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+          setError("Invalid location.");
+          return;
+        }
+
+        const reg: Region = {
+          latitude,
+          longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+        setRegion(reg);
+        mapRef.current?.animateToRegion(reg, 1000);
+      } catch (e) {
+        console.warn("❌ Greska sa lokacijom:", e);
+        setError("Unable to get location.");
       }
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.warn("❌ Lokacija nije dozvoljena");
-        setLoading(false);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-
-      const reg: Region = {
-        latitude,
-        longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-      setRegion(reg);
-      mapRef.current?.animateToRegion(reg, 1000);
-
-      await fetchWorkers(org);
-      const interval = setInterval(() => fetchWorkers(org), 15000);
-      return () => clearInterval(interval);
     };
 
-    load();
+    initMap();
   }, []);
+
+  useEffect(() => {
+    if (!region) return;
+
+    loadLastWorkers();
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 15000);
+    return () => clearInterval(interval);
+  }, [region]);
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -124,7 +133,6 @@ export default function Map({ onClose }: Props) {
           style={styles.map}
           initialRegion={region}
           customMapStyle={customMapStyle}
-          paddingAdjustmentBehavior="always"
           mapPadding={{ top: 60, bottom: 60, left: 20, right: 20 }}
         >
           {workers.map((worker, index) => (
@@ -149,6 +157,12 @@ export default function Map({ onClose }: Props) {
         </MapView>
       ) : (
         <ActivityIndicator style={{ flex: 1 }} size="large" color="black" />
+      )}
+
+      {error && (
+        <View style={styles.errorOverlay}>
+          <Text style={styles.errorText}>⚠️ {error}</Text>
+        </View>
       )}
 
       <Feather
@@ -196,6 +210,22 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 1,
+  },
+  errorOverlay: {
+    position: "absolute",
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: "white",
+    padding: 12,
+    borderRadius: 10,
+    borderColor: "red",
+    borderWidth: 1,
+  },
+  errorText: {
+    color: "red",
+    fontWeight: "bold",
+    textAlign: "center",
   },
 });
 
