@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "check-in",
+    "name": "Check-In",
     "slug": "check-in",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,9 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.teslicvukasin.checkin",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to track check-ins and check-outs.",
-        "NSLocationAlwaysUsageDescription": "This app requires access to your location even in the background for attendance tracking.",
-        "NSCameraUsageDescription": "This app requires access to the camera to scan QR codes.",
+        "NSCameraUsageDescription": "The camera is used to scan QR codes when checking in and out of work.",
+        "NSLocationWhenInUseUsageDescription": "Location is used to verify whether the worker is physically present at the workplace during check-in.",
+        "NSLocationAlwaysUsageDescription": "Background location is used to update attendance status and show active workers on the map in real-time.",
         "UIBackgroundModes": ["location"],
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -32,6 +32,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
+        "INTERNET",
         "CAMERA"
       ],
       "useNextNotificationsApi": true
@@ -39,7 +40,9 @@
     "web": {
       "favicon": "./assets/worker-logo.png"
     },
-    "plugins": ["expo-secure-store"],
+    "plugins": [
+      "expo-secure-store"
+    ],
     "extra": {
       "eas": {
         "projectId": "710c498b-ff45-457e-8360-f21b41ffbb39"

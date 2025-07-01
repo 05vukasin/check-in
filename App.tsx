@@ -1,11 +1,17 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  Image,
+} from "react-native";
 import WorkerStatusIndicator from "./components/WorkerStatusIndicator";
 import LoginModal from "./components/LoginModal";
 import QRCodeScanner from "./components/QRCodeScanner";
+import Map from "./components/Map";
 import * as SecureStore from "expo-secure-store";
-import { useLocationReporter } from "./hooks/useLocationReporter";
 import * as Location from "expo-location";
 import { LOCATION_TASK_NAME } from "./background/LocationTask";
 
@@ -15,6 +21,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [message, setMessage] = useState<string>("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     const validateWorker = async () => {
@@ -83,31 +90,44 @@ export default function App() {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  useLocationReporter();
-
   return (
     <View style={styles.container}>
-      {workerId && organisation ? (
+      {showMap && <Map onClose={() => setShowMap(false)} />}
+
+      {!showMap && (
         <>
-          <Text style={styles.header}>Skeniraj QR kod...</Text>
+          {workerId && organisation ? (
+            <>
+              <Text style={styles.header}>Skeniraj QR kod...</Text>
 
-          <WorkerStatusIndicator
-            workerId={workerId}
-            baseUrl={`https://${organisation}.vercel.app`}
-            refreshTrigger={refreshTrigger}
-          />
+              <WorkerStatusIndicator
+                workerId={workerId}
+                baseUrl={`https://${organisation}.vercel.app`}
+                refreshTrigger={refreshTrigger}
+              />
 
-          <QRCodeScanner
-            workerId={workerId}
-            organisation={organisation}
-            setMessage={setMessage}
-            onSuccess={handleRefresh}
-          />
+              <QRCodeScanner
+                workerId={workerId}
+                organisation={organisation}
+                setMessage={setMessage}
+                onSuccess={handleRefresh}
+              />
 
-          {message !== "" && <Text style={styles.message}>{message}</Text>}
+              {message !== "" && <Text style={styles.message}>{message}</Text>}
+            </>
+          ) : (
+            <Text>Molimo vas da se prijavite...</Text>
+          )}
+
+          {/* Dugme za otvaranje mape */}
+          <Pressable onPress={() => setShowMap(true)} style={styles.mapButton}>
+            <Image
+              source={require('./assets/map.jpg')}
+              style={styles.mapImage}
+              resizeMode="cover"
+            />
+          </Pressable>
         </>
-      ) : (
-        <Text>Molimo vas da se prijavite...</Text>
       )}
 
       <LoginModal
@@ -143,5 +163,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "red",
     textAlign: "center",
+  },
+  mapButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    backgroundColor: '#fff',
+  },
+  mapImage: {
+    width: '100%',
+    height: '100%',
   },
 });
