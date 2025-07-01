@@ -23,7 +23,12 @@ interface Worker {
 
 export default function Map({ onClose }: Props) {
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [region, setRegion] = useState<Region | null>(null);
+  const [region, setRegion] = useState<Region>({
+    latitude: 44.7866, // default Beograd
+    longitude: 20.4489,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
   const mapRef = useRef<MapView>(null);
 
   const arraysAreDifferent = (a: Worker[], b: Worker[]) => {
@@ -88,12 +93,20 @@ export default function Map({ onClose }: Props) {
   };
 
   useEffect(() => {
-    const initMap = async () => {
+    const init = async () => {
+      loadLastWorkers();
+      fetchWorkers();
+      const interval = setInterval(fetchWorkers, 15000);
+      return () => clearInterval(interval);
+    };
+
+    init();
+
+    (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
           console.warn("❌ Lokacija nije dozvoljena");
-          onClose();
           return;
         }
 
@@ -102,7 +115,6 @@ export default function Map({ onClose }: Props) {
 
         if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
           console.warn("❌ Nevalidna lokacija");
-          onClose();
           return;
         }
 
@@ -116,21 +128,9 @@ export default function Map({ onClose }: Props) {
         mapRef.current?.animateToRegion(reg, 1000);
       } catch (e) {
         console.warn("❌ Greska sa lokacijom:", e);
-        onClose();
       }
-    };
-
-    initMap();
+    })();
   }, []);
-
-  useEffect(() => {
-    if (!region) return;
-
-    loadLastWorkers();
-    fetchWorkers();
-    const interval = setInterval(fetchWorkers, 15000);
-    return () => clearInterval(interval);
-  }, [region]);
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -150,37 +150,33 @@ export default function Map({ onClose }: Props) {
 
   return (
     <View style={styles.container}>
-      {region ? (
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={region}
-          customMapStyle={customMapStyle}
-          mapPadding={{ top: 60, bottom: 60, left: 20, right: 20 }}
-        >
-          {workers.map((worker, index) => (
-            <Marker
-              key={index}
-              coordinate={{ latitude: worker.lat, longitude: worker.lon }}
-              anchor={{ x: 0.5, y: 1 }}
-              calloutAnchor={{ x: 0.5, y: 0 }}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={region}
+        customMapStyle={customMapStyle}
+        mapPadding={{ top: 60, bottom: 60, left: 20, right: 20 }}
+      >
+        {workers.map((worker, index) => (
+          <Marker
+            key={index}
+            coordinate={{ latitude: worker.lat, longitude: worker.lon }}
+            anchor={{ x: 0.5, y: 1 }}
+            calloutAnchor={{ x: 0.5, y: 0 }}
+          >
+            <View
+              style={[
+                styles.circleWrapper,
+                { backgroundColor: getColorForName(worker.name) },
+              ]}
             >
-              <View
-                style={[
-                  styles.circleWrapper,
-                  { backgroundColor: getColorForName(worker.name) },
-                ]}
-              >
-                <Text style={styles.initials}>
-                  {getInitials(worker.name || "??")}
-                </Text>
-              </View>
-            </Marker>
-          ))}
-        </MapView>
-      ) : (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color="black" />
-      )}
+              <Text style={styles.initials}>
+                {getInitials(worker.name || "??")}
+              </Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
 
       <Feather
         name="arrow-left"
