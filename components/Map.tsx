@@ -25,7 +25,20 @@ export default function Map({ onClose }: Props) {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const arraysAreDifferent = (a: Worker[], b: Worker[]) => {
+    if (a.length !== b.length) return true;
+    for (let i = 0; i < a.length; i++) {
+      if (
+        a[i].name !== b[i].name ||
+        a[i].lat !== b[i].lat ||
+        a[i].lon !== b[i].lon
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   const fetchWorkers = async () => {
     try {
@@ -44,10 +57,18 @@ export default function Map({ onClose }: Props) {
         return;
       }
 
-      const data = JSON.parse(text);
-      if (Array.isArray(data)) {
-        setWorkers(data);
-        await SecureStore.setItemAsync("lastWorkers", JSON.stringify(data));
+      const newData: Worker[] = JSON.parse(text);
+      if (!Array.isArray(newData)) return;
+
+      const cached = await SecureStore.getItemAsync("lastWorkers");
+      const oldData: Worker[] = cached ? JSON.parse(cached) : [];
+
+      if (arraysAreDifferent(newData, oldData)) {
+        console.log("🔄 Podaci se razlikuju, ažuriram...");
+        setWorkers(newData);
+        await SecureStore.setItemAsync("lastWorkers", JSON.stringify(newData));
+      } else {
+        console.log("✅ Podaci isti - keš ostaje");
       }
     } catch (e) {
       console.warn("❌ Greska prilikom fetch-a:", e);
@@ -71,7 +92,8 @@ export default function Map({ onClose }: Props) {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          setError("Location permission not granted.");
+          console.warn("❌ Lokacija nije dozvoljena");
+          onClose();
           return;
         }
 
@@ -79,7 +101,8 @@ export default function Map({ onClose }: Props) {
         const { latitude, longitude } = location.coords;
 
         if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
-          setError("Invalid location.");
+          console.warn("❌ Nevalidna lokacija");
+          onClose();
           return;
         }
 
@@ -93,7 +116,7 @@ export default function Map({ onClose }: Props) {
         mapRef.current?.animateToRegion(reg, 1000);
       } catch (e) {
         console.warn("❌ Greska sa lokacijom:", e);
-        setError("Unable to get location.");
+        onClose();
       }
     };
 
@@ -159,12 +182,6 @@ export default function Map({ onClose }: Props) {
         <ActivityIndicator style={{ flex: 1 }} size="large" color="black" />
       )}
 
-      {error && (
-        <View style={styles.errorOverlay}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
-
       <Feather
         name="arrow-left"
         size={28}
@@ -210,22 +227,6 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 1,
-  },
-  errorOverlay: {
-    position: "absolute",
-    top: 100,
-    left: 20,
-    right: 20,
-    backgroundColor: "white",
-    padding: 12,
-    borderRadius: 10,
-    borderColor: "red",
-    borderWidth: 1,
-  },
-  errorText: {
-    color: "red",
-    fontWeight: "bold",
-    textAlign: "center",
   },
 });
 

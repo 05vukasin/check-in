@@ -14,6 +14,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.teslicvukasin.checkin",
+      "config": {
+        "googleMapsApiKey": "AIzaSyABi--IGqYp6oWU_kinw1TyoFu01fBMZXQ"
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "The camera is used to scan QR codes when checking in and out of work.",
         "NSLocationWhenInUseUsageDescription": "Location is used to verify whether the worker is physically present at the workplace during check-in.",
@@ -36,12 +39,23 @@
         "INTERNET",
         "CAMERA"
       ],
-      "useNextNotificationsApi": true
+      "useNextNotificationsApi": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyABi--IGqYp6oWU_kinw1TyoFu01fBMZXQ"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/worker-logo.png"
     },
-    "plugins": ["expo-secure-store"],
+    "plugins": [
+      "expo-secure-store",
+      "expo-location",
+      "expo-camera",
+      "expo-task-manager",
+      "expo-dev-client"
+    ],
     "extra": {
       "eas": {
         "projectId": "01d0ea0e-5270-4a25-914c-bb9ffab4a3df"
