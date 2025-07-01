@@ -23,12 +23,7 @@ interface Worker {
 
 export default function Map({ onClose }: Props) {
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [region, setRegion] = useState<Region>({
-    latitude: 44.7866, // default Beograd
-    longitude: 20.4489,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
+  const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView>(null);
 
   const arraysAreDifferent = (a: Worker[], b: Worker[]) => {
@@ -76,7 +71,7 @@ export default function Map({ onClose }: Props) {
         console.log("✅ Podaci isti - keš ostaje");
       }
     } catch (e) {
-      console.warn("❌ Greska prilikom fetch-a:", e);
+      console.warn("❌ Greška prilikom fetch-a:", e);
     }
   };
 
@@ -94,15 +89,10 @@ export default function Map({ onClose }: Props) {
 
   useEffect(() => {
     const init = async () => {
-      loadLastWorkers();
-      fetchWorkers();
+      await loadLastWorkers();
+      await fetchWorkers();
       const interval = setInterval(fetchWorkers, 15000);
-      return () => clearInterval(interval);
-    };
 
-    init();
-
-    (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
@@ -110,7 +100,10 @@ export default function Map({ onClose }: Props) {
           return;
         }
 
-        const location = await Location.getCurrentPositionAsync({});
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
         const { latitude, longitude } = location.coords;
 
         if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
@@ -125,11 +118,14 @@ export default function Map({ onClose }: Props) {
           longitudeDelta: 0.05,
         };
         setRegion(reg);
-        mapRef.current?.animateToRegion(reg, 1000);
       } catch (e) {
-        console.warn("❌ Greska sa lokacijom:", e);
+        console.warn("❌ Greška sa lokacijom:", e);
       }
-    })();
+
+      return () => clearInterval(interval);
+    };
+
+    init();
   }, []);
 
   const getInitials = (name: string) => {
@@ -148,12 +144,20 @@ export default function Map({ onClose }: Props) {
     return `hsl(${hue}, 60%, 55%)`;
   };
 
+  if (!region) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={region}
+        region={region}
         customMapStyle={customMapStyle}
         mapPadding={{ top: 60, bottom: 60, left: 20, right: 20 }}
       >
@@ -193,6 +197,12 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 999,
+  },
+  loading: {
+    flex: 1,
+    backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
   },
   map: {
     flex: 1,
