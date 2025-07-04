@@ -1,12 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  Image,
-} from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Image } from "react-native";
 import WorkerStatusIndicator from "./components/WorkerStatusIndicator";
 import LoginModal from "./components/LoginModal";
 import QRCodeScanner from "./components/QRCodeScanner";
@@ -204,15 +198,17 @@ export default function App() {
           {message !== "" && <Text style={styles.message}>{message}</Text>}
 
           {!showMap && (
-  <TouchableOpacity onPress={openMapIfLocationAllowed} style={styles.mapButton}>
-    <Image
-      source={require("./assets/map.jpg")}
-      style={styles.mapIcon}
-      resizeMode="cover"
-    />
-  </TouchableOpacity>
-)}
-
+            <TouchableOpacity
+              onPress={openMapIfLocationAllowed}
+              style={styles.mapButton}
+            >
+              <Image
+                source={require("./assets/map.jpg")}
+                style={styles.mapIcon}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         <Text>Molimo vas da se prijavite...</Text>
