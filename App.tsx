@@ -1,6 +1,12 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Image } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Image,
+} from "react-native";
 import WorkerStatusIndicator from "./components/WorkerStatusIndicator";
 import LoginModal from "./components/LoginModal";
 import QRCodeScanner from "./components/QRCodeScanner";
@@ -9,6 +15,12 @@ import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
 import { LOCATION_TASK_NAME } from "./background/LocationTask";
 
+interface Worker {
+  name: string;
+  lat: number;
+  lon: number;
+}
+
 export default function App() {
   const [workerId, setWorkerId] = useState<number | null>(null);
   const [organisation, setOrganisation] = useState<string | null>(null);
@@ -16,7 +28,15 @@ export default function App() {
   const [message, setMessage] = useState<string>("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showMap, setShowMap] = useState(false);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [region, setRegion] = useState({
+    latitude: 44.7866, // default: Beograd
+    longitude: 20.4489,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
 
+  // ✅ Provera korisnika
   useEffect(() => {
     const validateWorker = async () => {
       const storedId = await SecureStore.getItemAsync("workerId");
@@ -28,7 +48,9 @@ export default function App() {
       }
 
       try {
-        const res = await fetch(`https://${storedOrg}.vercel.app/api/worker/validate?id=${storedId}`);
+        const res = await fetch(
+          `https://${storedOrg}.vercel.app/api/worker/validate?id=${storedId}`
+        );
         const json = await res.json();
 
         if (res.ok && json.ok) {
@@ -51,45 +73,117 @@ export default function App() {
     validateWorker();
   }, [refreshTrigger]);
 
+  // ✅ Fetch radnika i keš
   useEffect(() => {
-    const startBackgroundLocation = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+    const fetchAndCacheWorkers = async () => {
+      try {
+        if (!organisation) return;
 
-      if (status !== 'granted' || bgStatus !== 'granted') {
-        console.warn('❌ Lokacione dozvole nisu dodeljene');
-        return;
-      }
+        const url = `https://${organisation}.vercel.app/api/worker/online`;
+        const res = await fetch(url);
+        const json = await res.json();
 
-      const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-      if (!started) {
-        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 10000,
-          distanceInterval: 0,
-          showsBackgroundLocationIndicator: true,
-          pausesUpdatesAutomatically: false,
-          foregroundService: {
-            notificationTitle: 'Praćenje lokacije',
-            notificationBody: 'Aplikacija prati vašu lokaciju u pozadini',
-          },
-        });
+        if (!Array.isArray(json)) return;
+
+        const cached = await SecureStore.getItemAsync("lastWorkers");
+        const oldData: Worker[] = cached ? JSON.parse(cached) : [];
+
+        const arraysAreDifferent = (a: Worker[], b: Worker[]) =>
+          a.length !== b.length ||
+          a.some(
+            (w, i) =>
+              w.name !== b[i]?.name ||
+              w.lat !== b[i]?.lat ||
+              w.lon !== b[i]?.lon
+          );
+
+        if (arraysAreDifferent(json, oldData)) {
+          await SecureStore.setItemAsync("lastWorkers", JSON.stringify(json));
+          setWorkers(json);
+        } else {
+          setWorkers(oldData);
+        }
+      } catch (e) {
+        console.warn("⚠️ Greška pri fetch-u radnika:", e);
       }
     };
 
-    startBackgroundLocation();
+    fetchAndCacheWorkers();
+    const interval = setInterval(fetchAndCacheWorkers, 30000);
+    return () => clearInterval(interval);
+  }, [organisation]);
+
+  // ✅ Lokacija u pozadini + inicijalno centriranje regiona
+  useEffect(() => {
+    const setupLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status: bgStatus } =
+          await Location.requestBackgroundPermissionsAsync();
+
+        if (status === "granted") {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+
+          setRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
+
+        if (status === "granted" && bgStatus === "granted") {
+          const started = await Location.hasStartedLocationUpdatesAsync(
+            LOCATION_TASK_NAME
+          );
+          if (!started) {
+            await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+              accuracy: Location.Accuracy.High,
+              timeInterval: 10000,
+              distanceInterval: 0,
+              showsBackgroundLocationIndicator: true,
+              pausesUpdatesAutomatically: false,
+              foregroundService: {
+                notificationTitle: "Praćenje lokacije",
+                notificationBody: "Aplikacija prati vašu lokaciju u pozadini",
+              },
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("📍 Greška sa lokacijom:", e);
+      }
+    };
+
+    setupLocation();
   }, []);
+
+  // ✅ Otvaranje mape samo ako je lokacija već omogućena
+  const openMapIfLocationAllowed = async () => {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== "granted") {
+      setMessage("Lokacija nije omogućena. Ne možete otvoriti mapu.");
+      return;
+    }
+    setShowMap(true);
+  };
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  if (showMap) {
-    return <Map onClose={() => setShowMap(false)} />;
-  }
-
   return (
     <View style={styles.container}>
+      {/* ✅ Mapa u pozadini */}
+      <Map
+        onClose={() => setShowMap(false)}
+        workers={workers}
+        region={region}
+        visible={showMap}
+      />
+
       {workerId && organisation ? (
         <>
           <Text style={styles.header}>Skeniraj QR kod...</Text>
@@ -109,13 +203,16 @@ export default function App() {
 
           {message !== "" && <Text style={styles.message}>{message}</Text>}
 
-          <TouchableOpacity onPress={() => setShowMap(true)} style={styles.mapButton}>
-            <Image
-              source={require("./assets/map.jpg")}
-              style={styles.mapIcon}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
+          {!showMap && (
+  <TouchableOpacity onPress={openMapIfLocationAllowed} style={styles.mapButton}>
+    <Image
+      source={require("./assets/map.jpg")}
+      style={styles.mapIcon}
+      resizeMode="cover"
+    />
+  </TouchableOpacity>
+)}
+
         </>
       ) : (
         <Text>Molimo vas da se prijavite...</Text>
@@ -139,15 +236,16 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#fff",
     paddingHorizontal: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 20,
+    textAlign: "center",
   },
   message: {
     marginTop: 12,

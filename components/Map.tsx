@@ -1,19 +1,12 @@
-import React, { useEffect, useState, useRef } from "react";
+import React from "react";
 import {
   View,
   StyleSheet,
   Text,
-  ActivityIndicator,
   Platform,
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import { Feather } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
-import * as Location from "expo-location";
-
-interface Props {
-  onClose: () => void;
-}
 
 interface Worker {
   name: string;
@@ -21,112 +14,15 @@ interface Worker {
   lon: number;
 }
 
-export default function Map({ onClose }: Props) {
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [region, setRegion] = useState<Region | null>(null);
-  const mapRef = useRef<MapView>(null);
+interface Props {
+  onClose: () => void;
+  workers: Worker[];
+  region: Region;
+  visible: boolean;
+}
 
-  const arraysAreDifferent = (a: Worker[], b: Worker[]) => {
-    if (a.length !== b.length) return true;
-    for (let i = 0; i < a.length; i++) {
-      if (
-        a[i].name !== b[i].name ||
-        a[i].lat !== b[i].lat ||
-        a[i].lon !== b[i].lon
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const fetchWorkers = async () => {
-    try {
-      const org = await SecureStore.getItemAsync("organisation");
-      if (!org) return;
-
-      const url = `https://${org}.vercel.app/api/worker/online`;
-      console.log("📡 Pozivam endpoint:", url);
-
-      const res = await fetch(url);
-      const contentType = res.headers.get("content-type");
-      const text = await res.text();
-
-      if (!res.ok || !contentType?.includes("application/json")) {
-        console.warn("❌ Nije validan JSON:", text.slice(0, 100));
-        return;
-      }
-
-      const newData: Worker[] = JSON.parse(text);
-      if (!Array.isArray(newData)) return;
-
-      const cached = await SecureStore.getItemAsync("lastWorkers");
-      const oldData: Worker[] = cached ? JSON.parse(cached) : [];
-
-      if (arraysAreDifferent(newData, oldData)) {
-        console.log("🔄 Podaci se razlikuju, ažuriram...");
-        setWorkers(newData);
-        await SecureStore.setItemAsync("lastWorkers", JSON.stringify(newData));
-      } else {
-        console.log("✅ Podaci isti - keš ostaje");
-      }
-    } catch (e) {
-      console.warn("❌ Greška prilikom fetch-a:", e);
-    }
-  };
-
-  const loadLastWorkers = async () => {
-    try {
-      const cached = await SecureStore.getItemAsync("lastWorkers");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) setWorkers(parsed);
-      }
-    } catch (e) {
-      console.warn("⚠️ Cache load error:", e);
-    }
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      await loadLastWorkers();
-      await fetchWorkers();
-      const interval = setInterval(fetchWorkers, 15000);
-
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          console.warn("❌ Lokacija nije dozvoljena");
-          return;
-        }
-
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
-
-        const { latitude, longitude } = location.coords;
-
-        if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
-          console.warn("❌ Nevalidna lokacija");
-          return;
-        }
-
-        const reg: Region = {
-          latitude,
-          longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        };
-        setRegion(reg);
-      } catch (e) {
-        console.warn("❌ Greška sa lokacijom:", e);
-      }
-
-      return () => clearInterval(interval);
-    };
-
-    init();
-  }, []);
+export default function Map({ onClose, workers, region, visible }: Props) {
+  if (!visible) return null;
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -144,18 +40,9 @@ export default function Map({ onClose }: Props) {
     return `hsl(${hue}, 60%, 55%)`;
   };
 
-  if (!region) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="white" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <MapView
-        ref={mapRef}
         style={styles.map}
         region={region}
         customMapStyle={customMapStyle}
@@ -197,12 +84,6 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 999,
-  },
-  loading: {
-    flex: 1,
-    backgroundColor: "black",
-    justifyContent: "center",
-    alignItems: "center",
   },
   map: {
     flex: 1,
