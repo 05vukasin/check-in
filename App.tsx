@@ -15,9 +15,9 @@ import Map from "./components/Map";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
-import * as TaskManager from 'expo-task-manager';
+import * as TaskManager from "expo-task-manager";
 import { LOCATION_TASK_NAME } from "./background/LocationTask";
-import "./background/LocationTask"; // ensure task is registered
+import "./background/LocationTask"; // obavezno da task bude registrovan
 
 interface Worker {
   name: string;
@@ -40,9 +40,7 @@ export default function App() {
     longitudeDelta: 0.05,
   });
 
-  
-
-  // ✅ Postavi handler za notifikacije
+  // ✅ Notifikacioni handler (lokalne notifikacije)
   useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -55,7 +53,7 @@ export default function App() {
     });
   }, []);
 
-  // ✅ Provera korisnika
+  // ✅ Provera korisnika iz SecureStore
   useEffect(() => {
     const validateWorker = async () => {
       const storedId = await SecureStore.getItemAsync("workerId");
@@ -92,7 +90,7 @@ export default function App() {
     validateWorker();
   }, [refreshTrigger]);
 
-  // ✅ Fetch radnika
+  // ✅ Fetch radnika iz API-ja
   useEffect(() => {
     const fetchAndCacheWorkers = async () => {
       try {
@@ -163,7 +161,7 @@ export default function App() {
             console.log("📍 Starting background location task...");
             await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
               accuracy: Location.Accuracy.High,
-              timeInterval: 300000,
+              timeInterval: 300000, // 5 minuta
               distanceInterval: 0,
               showsBackgroundLocationIndicator: true,
               pausesUpdatesAutomatically: false,
@@ -186,11 +184,12 @@ export default function App() {
     setupLocation();
   }, []);
 
+  // ✅ Log registracije taska (debug)
   useEffect(() => {
-  TaskManager.getRegisteredTasksAsync().then(tasks => {
-    console.log("📋 Registered tasks:", tasks);
-  });
-}, []);
+    TaskManager.getRegisteredTasksAsync().then((tasks) => {
+      console.log("📋 Registered tasks:", tasks);
+    });
+  }, []);
 
   const openMapIfLocationAllowed = async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
