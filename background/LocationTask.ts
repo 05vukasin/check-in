@@ -1,41 +1,61 @@
-// background/locationTask.ts
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 
-const LOCATION_TASK_NAME = 'background-location-task';
+export const LOCATION_TASK_NAME = 'background-location-task';
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) {
-    console.error('❌ Task error:', error);
+    console.error('❌ Error in background location task:', error);
     return;
   }
 
-  if (data) {
-    const { locations } = data as any;
-    const location = locations[0];
+  const location = (data as any).locations?.[0];
+  if (!location) {
+    console.warn('⚠️ Nema lokacije u task eventu.');
+    return;
+  }
 
-    if (!location) return;
+  try {
+    const workerId = await SecureStore.getItemAsync('workerId');
+    const organisation = await SecureStore.getItemAsync('organisation');
 
-    try {
-      const storedId = await SecureStore.getItemAsync('workerId');
-      const storedOrg = await SecureStore.getItemAsync('organisation');
-
-      if (storedId && storedOrg) {
-        await fetch(`https://${storedOrg}.vercel.app/api/location/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workerId: parseInt(storedId),
-            lat: location.coords.latitude,
-            lon: location.coords.longitude,
-          }),
-        });
-      }
-    } catch (e) {
-      console.error('❌ Error sending location:', e);
+    if (!workerId || !organisation) {
+      console.warn('⚠️ Nema workerId ili organisation u SecureStore.');
+      return;
     }
+
+    const lat = location.coords.latitude;
+    const lon = location.coords.longitude;
+
+    console.log(`📍 Trenutna lokacija: lat=${lat}, lon=${lon}`);
+
+    const res = await fetch(`https://${organisation}.vercel.app/api/location/check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lon }),
+    });
+
+    const json = await res.json();
+    console.log('✅ Rezultat check lokacije:', json);
+
+    if (json.allowed) {
+      console.log('📢 Radnik je u krugu – zakazujemo notifikaciju...');
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📍 Blizu ste posla',
+          body: 'Prijavite se na posao jednim klikom.',
+          data: { screen: 'QR' },
+        },
+        trigger: null,
+      });
+      console.log('✅ Notifikacija uspešno zakazana.');
+    } else {
+      console.log('ℹ️ Radnik nije u krugu – notifikacija nije poslata.');
+    }
+
+  } catch (err) {
+    console.error('📡 Background location error:', err);
   }
 });
-
-export { LOCATION_TASK_NAME };

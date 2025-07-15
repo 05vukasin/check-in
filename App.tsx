@@ -1,12 +1,21 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Image } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Image,
+  Platform,
+} from "react-native";
 import WorkerStatusIndicator from "./components/WorkerStatusIndicator";
 import LoginModal from "./components/LoginModal";
 import QRCodeScanner from "./components/QRCodeScanner";
 import Map from "./components/Map";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
+import * as TaskManager from 'expo-task-manager';
 import { LOCATION_TASK_NAME } from "./background/LocationTask";
 
 interface Worker {
@@ -24,11 +33,26 @@ export default function App() {
   const [showMap, setShowMap] = useState(false);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [region, setRegion] = useState({
-    latitude: 44.7866, // default: Beograd
+    latitude: 44.7866,
     longitude: 20.4489,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+
+  
+
+  // ✅ Postavi handler za notifikacije
+  useEffect(() => {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }, []);
 
   // ✅ Provera korisnika
   useEffect(() => {
@@ -67,7 +91,7 @@ export default function App() {
     validateWorker();
   }, [refreshTrigger]);
 
-  // ✅ Fetch radnika i keš
+  // ✅ Fetch radnika
   useEffect(() => {
     const fetchAndCacheWorkers = async () => {
       try {
@@ -107,15 +131,17 @@ export default function App() {
     return () => clearInterval(interval);
   }, [organisation]);
 
-  // ✅ Lokacija u pozadini + inicijalno centriranje regiona
+  // ✅ Setup lokacije i pozadinskog taska
   useEffect(() => {
     const setupLocation = async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status: fgStatus } =
+          await Location.requestForegroundPermissionsAsync();
         const { status: bgStatus } =
           await Location.requestBackgroundPermissionsAsync();
+        await Notifications.requestPermissionsAsync();
 
-        if (status === "granted") {
+        if (fgStatus === "granted") {
           const location = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.High,
           });
@@ -128,33 +154,43 @@ export default function App() {
           });
         }
 
-        if (status === "granted" && bgStatus === "granted") {
+        if (fgStatus === "granted" && bgStatus === "granted") {
           const started = await Location.hasStartedLocationUpdatesAsync(
             LOCATION_TASK_NAME
           );
           if (!started) {
+            console.log("📍 Starting background location task...");
             await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
               accuracy: Location.Accuracy.High,
-              timeInterval: 10000,
+              timeInterval: 30000,
               distanceInterval: 0,
               showsBackgroundLocationIndicator: true,
               pausesUpdatesAutomatically: false,
               foregroundService: {
                 notificationTitle: "Praćenje lokacije",
-                notificationBody: "Aplikacija prati vašu lokaciju u pozadini",
+                notificationBody: "Ažuriranje pozicije radnika u pozadini",
               },
             });
+          } else {
+            console.log("✅ Background location task već aktivan");
           }
+        } else {
+          console.warn("❗ Dozvole za lokaciju nisu date");
         }
       } catch (e) {
-        console.warn("📍 Greška sa lokacijom:", e);
+        console.error("❌ Greška u setupLocation:", e);
       }
     };
 
     setupLocation();
   }, []);
 
-  // ✅ Otvaranje mape samo ako je lokacija već omogućena
+  useEffect(() => {
+  TaskManager.getRegisteredTasksAsync().then(tasks => {
+    console.log("📋 Registered tasks:", tasks);
+  });
+}, []);
+
   const openMapIfLocationAllowed = async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
     if (status !== "granted") {
@@ -170,7 +206,6 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* ✅ Mapa u pozadini */}
       <Map
         onClose={() => setShowMap(false)}
         workers={workers}
