@@ -31,6 +31,13 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 
     console.log(`📍 Trenutna lokacija: lat=${lat}, lon=${lon}`);
 
+    // ⬇️ Send the worker's coordinates to the server
+    await fetch(`https://${organisation}.vercel.app/api/location/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workerId, lat, lon }),
+    });
+
     const res = await fetch(`https://${organisation}.vercel.app/api/location/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
