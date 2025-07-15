@@ -163,7 +163,7 @@ export default function App() {
             console.log("📍 Starting background location task...");
             await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
               accuracy: Location.Accuracy.High,
-              timeInterval: 30000,
+              timeInterval: 300000,
               distanceInterval: 0,
               showsBackgroundLocationIndicator: true,
               pausesUpdatesAutomatically: false,
