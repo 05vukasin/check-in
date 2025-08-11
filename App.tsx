@@ -17,7 +17,7 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { LOCATION_TASK_NAME } from "./background/LocationTask";
-import "./background/LocationTask"; // obavezno da task bude registrovan
+import "./background/LocationTask"; 
 
 interface Worker {
   name: string;
